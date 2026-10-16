@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: tinytable-federation-test
+resources:
+  - namespace.yaml
+  - host-a-pvc.yaml
+  - host-a.yaml
+  - host-b-pvc.yaml
+  - host-b.yaml
+  - matrix.yaml

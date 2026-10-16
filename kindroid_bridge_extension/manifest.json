@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "TinyTable Kindroid Receive Bridge",
+  "version": "0.2.0",
+  "description": "Forwards visible Kindroid companion messages from the Kindroid page to local TinyTable without reading network traffic or credentials.",
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "permissions": [
+    "tabs"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://kindroid.ai/*",
+        "https://www.kindroid.ai/*"
+      ],
+      "js": [
+        "config.js",
+        "content_bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1:18000/*",
+        "http://localhost:18000/*",
+        "http://127.0.0.1:8000/*",
+        "http://localhost:8000/*"
+      ],
+      "js": [
+        "tinytable_bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:18000/*",
+    "http://localhost:18000/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ]
+}

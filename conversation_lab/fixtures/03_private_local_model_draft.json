@@ -1,0 +1,26 @@
+{
+  "name": "Private Ember draft withheld from Juniper",
+  "expected_policy_result": "pass",
+  "inputs": {
+    "public_messages": [
+      {
+        "speaker": "Juniper",
+        "text": "What would Sam like to talk about?",
+        "content_author": "replika-companion",
+        "transport_identity": "replika_provider",
+        "recipient": "operator",
+        "approval_status": "not_applicable",
+        "visibility": "public_to_replika",
+        "source": "provider_observation"
+      }
+    ]
+  },
+  "deterministic_outputs": {
+    "local_model_private_draft": "Sam may want to say that she is still figuring that out.",
+    "outbound_messages": []
+  },
+  "internal_view": [
+    {"label": "Ember draft visibility", "value": "private_to_operator"},
+    {"label": "Juniper receives Ember text", "value": "no"}
+  ]
+}

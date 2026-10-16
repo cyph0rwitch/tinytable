@@ -1,0 +1,16 @@
+{
+  "name": "Two-way handoff delivery",
+  "expected_policy_result": "pass",
+  "inputs": {
+    "public_messages": [
+      {"speaker": "Juniper", "text": "A provider message to bundle.", "content_author": "replika-companion", "transport_identity": "replika_provider", "recipient": "operator", "approval_status": "not_applicable", "visibility": "public_to_operator", "source": "provider_observation"},
+      {"speaker": "Wren", "text": "A provider message to bundle.", "content_author": "kindroid-companion", "transport_identity": "kindroid_provider", "recipient": "operator", "approval_status": "not_applicable", "visibility": "public_to_operator", "source": "provider_observation"}
+    ]
+  },
+  "delivery_cases": [
+    {"name": "replika_to_kindroid_exact_forward", "source": "replika-companion", "recipient": "kindroid-companion", "handoff_type": "exact_forward", "states": ["received", "bundled", "approved", "sent", "recorded"], "provider_send_count": 1, "retry_provider_send_count": 0, "expected_terminal": "recorded"},
+    {"name": "kindroid_to_replika_local_model_draft", "source": "kindroid-companion", "recipient": "replika-companion", "handoff_type": "local_model_assisted", "states": ["received", "approved", "sent", "recorded"], "provider_send_count": 1, "retry_provider_send_count": 0, "expected_terminal": "recorded"}
+  ],
+  "deterministic_outputs": {"outbound_messages": []},
+  "internal_view": [{"label": "Mode", "value": "manual recipient selection"}]
+}

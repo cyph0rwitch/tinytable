@@ -1,0 +1,7 @@
+# Files run inside Linux containers must keep LF endings, even on Windows checkouts.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary
+*.db binary

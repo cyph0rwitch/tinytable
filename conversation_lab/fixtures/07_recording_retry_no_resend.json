@@ -1,0 +1,11 @@
+{
+  "name": "Recording retry does not resend",
+  "expected_policy_result": "pass",
+  "inputs": {"public_messages": []},
+  "delivery_cases": [
+    {"name": "replika_to_kindroid_recording_retry", "source": "replika-companion", "recipient": "kindroid-companion", "handoff_type": "exact_forward", "states": ["received", "bundled", "approved", "sent", "recording_failed", "recorded"], "provider_send_count": 1, "recording_attempts": 2, "retry_provider_send_count": 0, "expected_terminal": "recorded"},
+    {"name": "kindroid_to_replika_recording_retry", "source": "kindroid-companion", "recipient": "replika-companion", "handoff_type": "local_model_assisted", "states": ["received", "approved", "sent", "recording_failed", "recorded"], "provider_send_count": 1, "recording_attempts": 2, "retry_provider_send_count": 0, "expected_terminal": "recorded"}
+  ],
+  "deterministic_outputs": {"outbound_messages": []},
+  "internal_view": [{"label": "Recovery", "value": "record-only retry"}]
+}

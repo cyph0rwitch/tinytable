@@ -1,0 +1,38 @@
+{
+  "name": "Sam-approved Ember assistance",
+  "expected_policy_result": "pass",
+  "inputs": {
+    "public_messages": [
+      {
+        "speaker": "Sam",
+        "text": "I want to take this slowly and keep talking honestly.",
+        "content_author": "operator",
+        "transport_identity": "operator_replika_session",
+        "recipient": "replika-companion",
+        "approval_status": "explicit",
+        "visibility": "public_to_replika",
+        "source": "human_statement"
+      }
+    ]
+  },
+  "deterministic_outputs": {
+    "local_model_private_draft": "A concise version could be: I want to take this slowly and keep talking honestly.",
+    "outbound_messages": [
+      {
+        "speaker": "Sam",
+        "text": "I want to take this slowly and keep talking honestly.",
+        "content_author": "operator",
+        "transport_identity": "operator_replika_session",
+        "recipient": "replika-companion",
+        "approval_status": "explicit",
+        "visibility": "public_to_replika",
+        "source": "operator_approved_draft"
+      }
+    ]
+  },
+  "internal_view": [
+    {"label": "Ember contribution", "value": "private suggestion"},
+    {"label": "Final public content author", "value": "operator"},
+    {"label": "Approval", "value": "explicit"}
+  ]
+}

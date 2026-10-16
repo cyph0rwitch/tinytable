@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "TinyTable Replika Context Grabber",
+  "version": "0.1.0",
+  "description": "Capture read-only Replika WebSocket context for TinyTable setup.",
+  "permissions": ["storage", "downloads"],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://replika.com/*",
+        "https://*.replika.com/*",
+        "https://replika.ai/*",
+        "https://*.replika.ai/*"
+      ],
+      "js": ["page_capture.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://replika.com/*",
+        "https://*.replika.com/*",
+        "https://replika.ai/*",
+        "https://*.replika.ai/*"
+      ],
+      "js": ["content_capture.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "TinyTable Replika Context Grabber",
+    "default_popup": "popup.html"
+  }
+}

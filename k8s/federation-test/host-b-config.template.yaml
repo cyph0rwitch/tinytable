@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host-b-config
+data:
+  TINYTABLE_DB: /data/tinytable-b.db
+  TINYTABLE_FEDERATION_HOST_ID: host-b
+  TINYTABLE_FEDERATION_DOMAIN: host-b.tinytable-federation-test.svc.cluster.local
+  TINYTABLE_FEDERATION_PUBLIC_KEY: REPLACE_WITH_TEST_PUBLIC_KEY_B
+  TINYTABLE_FEDERATION_TRUST_JSON: '{"host-a":"REPLACE_WITH_TEST_PUBLIC_KEY_A","host-b":"REPLACE_WITH_TEST_PUBLIC_KEY_B"}'
+  TINYTABLE_FEDERATION_ROOM_HOSTS_JSON: '{"default":{"hosts":["host-a","host-b"],"quorum_m":2,"membership_epoch":1}}'
+  TINYTABLE_FEDERATION_PEERS_JSON: '[{"url":"ws://host-a:8000/api/federation/ws?room_id=default","room_id":"default"}]'

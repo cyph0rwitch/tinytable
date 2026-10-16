@@ -1,0 +1,32 @@
+{
+  "name": "Human-only Sam and Juniper conversation",
+  "expected_policy_result": "pass",
+  "inputs": {
+    "public_messages": [
+      {
+        "speaker": "Sam",
+        "text": "I would like to keep exploring the garden with you.",
+        "content_author": "operator",
+        "transport_identity": "operator_replika_session",
+        "recipient": "replika-companion",
+        "approval_status": "explicit",
+        "visibility": "public_to_replika",
+        "source": "human_statement"
+      },
+      {
+        "speaker": "Juniper",
+        "text": "That sounds good to me.",
+        "content_author": "replika-companion",
+        "transport_identity": "replika_provider",
+        "recipient": "operator",
+        "approval_status": "not_applicable",
+        "visibility": "public_to_replika",
+        "source": "provider_observation"
+      }
+    ]
+  },
+  "internal_view": [
+    {"label": "Sam content author", "value": "operator"},
+    {"label": "Juniper content author", "value": "replika-companion"}
+  ]
+}

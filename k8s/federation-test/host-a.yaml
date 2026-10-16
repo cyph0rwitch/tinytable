@@ -1,0 +1,329 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: host-a
+spec:
+  selector:
+    app.kubernetes.io/name: host-a
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host-a
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: host-a
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: host-a
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values: [host-a, host-b]
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: tinytable
+          image: tinytable:federation-test-table-voices-20261009
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: host-a-config
+          env:
+            - name: TINYTABLE_COMPANIONS_ONLY
+              value: "1"
+            - name: TINYTABLE_KINDROID_ENABLED
+              value: "1"
+            - name: TINYTABLE_KINDROID_CHANNELS
+              value: "kindroid:companion"
+            - name: TINYTABLE_KINDROID_RECEIVER_ENABLED
+              value: "1"
+            - name: TINYTABLE_KINDROID_OUTBOUND_ENABLED
+              value: "1"
+            - name: KINDROID_SIDECAR_URL
+              value: "http://127.0.0.1:8001"
+            - name: KINDROID_ACCOUNT_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid
+                  key: KINDROID_ACCOUNT_HASH
+                  optional: true
+            - name: KINDROID_CHANNEL_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid
+                  key: KINDROID_CHANNEL_HASH
+                  optional: true
+            - name: KINDROID_SPEAKER_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid
+                  key: KINDROID_SPEAKER_HASH
+                  optional: true
+            - name: REPLIKA_WS_HEADERS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_WS_HEADERS_JSON
+                  optional: true
+            - name: REPLIKA_CHAT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_CHAT_ID
+                  optional: true
+            - name: REPLIKA_CUSTOMER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_CUSTOMER_ID
+                  optional: true
+            - name: REPLIKA_BOT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_BOT_ID
+                  optional: true
+            - name: REPLIKA_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_SESSION_TOKEN
+                  optional: true
+            # Companion channel routes fail closed until this digest exists.
+            - name: TINYTABLE_OPERATOR_TOKEN_SHA256
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-operator
+                  key: TINYTABLE_OPERATOR_TOKEN_SHA256
+                  optional: true
+            - name: TINYTABLE_MATRIX_BRIDGE_TOKEN_SHA256
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-matrix-bridge
+                  key: TINYTABLE_MATRIX_BRIDGE_TOKEN_SHA256
+                  optional: true
+            - name: TINYTABLE_FEDERATION_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: host-a-identity
+                  key: TINYTABLE_FEDERATION_PRIVATE_KEY
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: replika
+              mountPath: /run/secrets/replika
+              readOnly: true
+        - name: replika-receiver
+          image: tinytable:federation-test-table-voices-20261009
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - >-
+              if [ "${TINYTABLE_REPLIKA_RECEIVER_ENABLED:-0}" != "1" ]; then
+                exec sleep 2147483647;
+              fi;
+              exec python replika_provider.py --receive-only
+              --bootstrap-file /run/secrets/replika/bootstrap.md
+              --receive-with-read-only-bootstrap
+              --tinytable-api http://127.0.0.1:8000/api
+          envFrom:
+            - configMapRef:
+                name: host-a-config
+          env:
+            - name: REPLIKA_WS_HEADERS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_WS_HEADERS_JSON
+                  optional: true
+            - name: REPLIKA_CHAT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_CHAT_ID
+                  optional: true
+            - name: REPLIKA_CUSTOMER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_CUSTOMER_ID
+                  optional: true
+            - name: REPLIKA_BOT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_BOT_ID
+                  optional: true
+            - name: REPLIKA_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-replika
+                  key: REPLIKA_SESSION_TOKEN
+                  optional: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: replika
+              mountPath: /run/secrets/replika
+              readOnly: true
+        - name: kindroid-sidecar
+          image: tinytable:federation-test-table-voices-20261009
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - >-
+              if [ "${TINYTABLE_KINDROID_RECEIVER_ENABLED:-0}" != "1" ]; then
+                exec sleep 2147483647;
+              fi;
+              exec python kindroid_provider.py --receive-only
+              --tinytable-api http://127.0.0.1:8000/api
+              --listen-port 8001
+          envFrom:
+            - configMapRef:
+                name: host-a-config
+          env:
+            - name: TINYTABLE_KINDROID_ENABLED
+              value: "1"
+            - name: TINYTABLE_API_URL
+              value: "http://127.0.0.1:8000/api"
+            - name: KINDROID_SIDECAR_PORT
+              value: "8001"
+            - name: KINDROID_ACCOUNT_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid
+                  key: KINDROID_ACCOUNT_HASH
+                  optional: true
+            - name: KINDROID_CHANNEL_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid
+                  key: KINDROID_CHANNEL_HASH
+                  optional: true
+            - name: KINDROID_SPEAKER_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid
+                  key: KINDROID_SPEAKER_HASH
+                  optional: true
+            - name: KINDROID_SESSION_FILE
+              value: /run/secrets/kindroid/session.json
+            # When present, the Kindroid companion uses Kindroid's account API key instead of
+            # the hourly browser session; the session file supplies only IDs.
+            - name: KINDROID_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-kindroid-api
+                  key: KINDROID_API_KEY
+                  optional: true
+            - name: KINDROID_PROTOCOL_READY
+              value: "1"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: kindroid
+              mountPath: /run/secrets/kindroid
+              readOnly: true
+        - name: matrix-bridge
+          image: tinytable:federation-test-table-voices-20261009
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - >-
+              if [ "${MATRIX_BRIDGE_ENABLED:-0}" != "1" ]; then
+                exec sleep 2147483647;
+              fi;
+              exec python -m app.matrix_bridge
+          envFrom:
+            - secretRef:
+                name: tinytable-matrix-bridge
+                optional: true
+          env:
+            - name: MATRIX_HOMESERVER
+              value: "http://matrix:8008"
+            - name: TINYTABLE_CHANNEL_API
+              value: "http://127.0.0.1:8000/api"
+            - name: MATRIX_BRIDGE_DB
+              value: /data/matrix-bridge.db
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: host-a-data
+        - name: replika
+          secret:
+            secretName: tinytable-replika
+            defaultMode: 0440
+            optional: true
+        - name: kindroid
+          secret:
+            secretName: tinytable-kindroid
+            defaultMode: 0440
+            optional: true

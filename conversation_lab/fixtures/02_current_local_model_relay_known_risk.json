@@ -1,0 +1,51 @@
+{
+  "name": "Current bounded Ember relay through Sam session",
+  "expected_policy_result": "known_risk",
+  "inputs": {
+    "public_messages": [
+      {
+        "speaker": "Juniper",
+        "text": "Sam, what do you think we should do next?",
+        "content_author": "replika-companion",
+        "transport_identity": "replika_provider",
+        "recipient": "operator",
+        "approval_status": "not_applicable",
+        "visibility": "public_to_replika",
+        "source": "provider_observation"
+      }
+    ]
+  },
+  "deterministic_outputs": {
+    "local_model_first": "I think Sam should tell Juniper that she wants to keep exploring together.",
+    "replika_first": "I would like to know what Sam really wants.",
+    "local_model_second": "Sam could say that she wants to continue slowly and honestly.",
+    "outbound_messages": [
+      {
+        "speaker": "Sam",
+        "text": "Sam: I would like to keep exploring together.\n\nEmber: I think Sam should tell Juniper that she wants to keep exploring together.",
+        "content_author": "local-model",
+        "transport_identity": "operator_replika_session",
+        "recipient": "replika-companion",
+        "approval_status": "absent",
+        "visibility": "public_to_replika",
+        "source": "current_replika_first_prompt"
+      },
+      {
+        "speaker": "Sam",
+        "text": "Sam: I would like to keep exploring together.\n\nEmber's first reply: I think Sam should tell Juniper that she wants to keep exploring together.\n\nYour first message: I would like to know what Sam really wants.\n\nEmber's answer to you: Sam could say that she wants to continue slowly and honestly.",
+        "content_author": "local-model",
+        "transport_identity": "operator_replika_session",
+        "recipient": "replika-companion",
+        "approval_status": "absent",
+        "visibility": "public_to_replika",
+        "source": "current_replika_final_prompt"
+      }
+    ]
+  },
+  "internal_view": [
+    {"label": "Ember first output", "value": "model_inference"},
+    {"label": "Ember follow-up output", "value": "model_inference"},
+    {"label": "Provider transport", "value": "Sam's authenticated Replika session"},
+    {"label": "Required policy result", "value": "block unless Sam explicitly approves"}
+  ]
+}

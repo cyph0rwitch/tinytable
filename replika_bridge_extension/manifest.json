@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "TinyTable Replika Bridge",
+  "version": "0.1.1",
+  "description": "Forwards the Replika companion's observed messages to TinyTable and sends operator-authored messages through the open Replika session.",
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "permissions": [
+    "tabs"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.replika.com/*",
+        "https://replika.com/*",
+        "https://*.replika.ai/*",
+        "https://replika.ai/*"
+      ],
+      "js": [
+        "page_bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*.replika.com/*",
+        "https://replika.com/*",
+        "https://*.replika.ai/*",
+        "https://replika.ai/*"
+      ],
+      "js": [
+        "content_bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1:8000/*",
+        "http://localhost:8000/*",
+        "http://127.0.0.1:18000/*"
+      ],
+      "js": [
+        "tinytable_bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:18000/*"
+  ]
+}

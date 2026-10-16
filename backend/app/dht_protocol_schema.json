@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tinytable.invalid/schema/dht-protocol-v0.1.schema.json",
+  "title": "TinyTable DHT RPC Object v0.1",
+  "description": "Network-layer discovery RPC. Sibling of the room-event envelope in federation v0.1, NOT a room event: it carries no room_id or author_id and confers no authority. Routing only. Signed and verified with the same Ed25519 path as room events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "rpc_id", "rpc_type", "origin_host_id", "origin_node_id", "created_at", "payload", "signature"],
+  "properties": {
+    "protocol": {"type": "string", "const": "tinytable-dht-v0.1"},
+    "rpc_id": {"type": "string", "minLength": 1, "description": "Idempotency / replay key, same role as event_id for room events."},
+    "rpc_type": {"type": "string", "enum": ["ping", "pong", "find_node", "find_node_result"]},
+    "origin_host_id": {"type": "string", "minLength": 1, "description": "Friendly host label; must match a known federation_hosts row for the signature check."},
+    "origin_node_id": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Routing coordinate = SHA256(origin host public_key), hex. Self-certifying: the receiver recomputes it from the pubkey it already verifies and rejects a mismatch."},
+    "created_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object"},
+    "signature": {"type": "string", "minLength": 1, "description": "base64url Ed25519 signature over the canonical object without this field, exactly as federation.sign_event does."}
+  },
+  "$defs": {
+    "node_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "host_id", "url", "public_key"],
+      "properties": {
+        "node_id": {"$ref": "#/$defs/node_id"},
+        "host_id": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "format": "uri"},
+        "public_key": {"type": "string", "minLength": 1, "description": "base64url raw Ed25519 public key; SHA256 of its raw bytes must equal node_id."}
+      }
+    },
+    "ping_payload": {"type": "object", "additionalProperties": false, "properties": {}},
+    "find_node_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target"],
+      "properties": {
+        "target": {"allOf": [{"$ref": "#/$defs/node_id"}], "description": "The key being looked up: a node_id, or SHA256(\"room:\"+room_id) / SHA256(\"commons:\"+record_id) for keyspace lookups."}
+      }
+    },
+    "find_node_result_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "nodes"],
+      "properties": {
+        "target": {"$ref": "#/$defs/node_id"},
+        "nodes": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/contact"},
+          "description": "Up to k contacts closest to target by XOR distance, from the responder's routing table."
+        }
+      }
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"rpc_type": {"const": "ping"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/ping_payload"}}}},
+    {"if": {"properties": {"rpc_type": {"const": "pong"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/ping_payload"}}}},
+    {"if": {"properties": {"rpc_type": {"const": "find_node"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/find_node_payload"}}}},
+    {"if": {"properties": {"rpc_type": {"const": "find_node_result"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/find_node_result_payload"}}}}
+  ]
+}

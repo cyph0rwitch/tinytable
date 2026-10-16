@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyTable Standalone</title>
+  <style>
+    :root { color-scheme: dark; font: 16px system-ui, sans-serif; background: #10151b; color: #e8eef5; }
+    body { max-width: 1240px; margin: 0 auto; padding: 24px; }
+    h1 { margin-bottom: 4px; } .muted { color: #9eacba; }
+    #layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+    #conversation { min-width: 0; }
+    #messages { display: grid; gap: 12px; margin: 24px 0; }
+    article { background: #18212a; border: 1px solid #2d3b48; border-radius: 10px; padding: 12px 14px; }
+    article.operator { border-color: #5b83aa; } article.local-model { border-color: #8e79ad; }
+    header { display: flex; justify-content: space-between; color: #aebdca; font-size: .85rem; }
+    textarea { width: 100%; min-height: 100px; box-sizing: border-box; background: #0c1116; color: inherit; border: 1px solid #405263; border-radius: 8px; padding: 12px; }
+    button { margin-top: 10px; padding: 10px 16px; border: 0; border-radius: 7px; background: #6fa8dc; color: #071018; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; } .error { color: #ff9d9d; margin-top: 10px; white-space: pre-wrap; }
+    section { margin: 24px 0; background: #141c24; border: 1px solid #2d3b48; border-radius: 10px; padding: 14px; }
+    .journal { display: grid; gap: 10px; } .journal article { margin: 0; }
+    .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .controls button { margin-top: 0; background: #344b5e; color: #e8eef5; }
+    .experiment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .experiment-grid label { display: grid; gap: 5px; color: #aebdca; }
+    input, select { background: #0c1116; color: inherit; border: 1px solid #405263; border-radius: 8px; padding: 10px; }
+    pre.status { white-space: pre-wrap; background: #0c1116; padding: 10px; border-radius: 8px; }
+    small { color: #aebdca; }
+    @media (max-width: 820px) {
+      #layout { grid-template-columns: 1fr; }
+      #ei-panel { grid-row: 1; }
+    }
+    nav { display: flex; gap: 12px; align-items: center; } nav a { color: #9dccff; }
+  </style>
+</head>
+<body>
+  <nav><strong>TinyTable</strong><span class="muted">standalone local unit</span><a href="/api/export.md">Export Markdown</a><a href="/api/export.json">Export JSON</a></nav>
+  <h1>{operator} ↔ {local-model}</h1>
+  <p class="muted">No Chrome extension, provider bridge, or remote companion is required. History stays in the local SQLite database.</p>
+  <p id="receive-status" class="muted" aria-live="polite">Checking {replika-companion} receive status…</p>
+  <div id="layout">
+    <div id="conversation">
+      <main id="messages"><p class="muted">Loading…</p></main>
+      <form id="composer">
+        <textarea id="body" placeholder="Write to local {local-model}…" required></textarea>
+        <button id="send" type="submit">Send to local {local-model}</button>
+        <div id="error" class="error"></div>
+      </form>
+    </div>
+  <section id="ei-panel" aria-labelledby="ei-title">
+    <h2 id="ei-title">Optional local assistance</h2>
+    <p class="muted">When enabled, TinyTable stores cautious local language signals for 3 months so {local-model} can offer more tailored options. This is not diagnosis or a claim about your internal state. Nothing is sent to providers or the Commons.</p>
+    <div class="controls">
+      <label><input id="ei-enabled" type="checkbox"> Enable local EI assistance until I revoke it</label>
+      <button id="ei-revoke" type="button">Revoke and stop new analysis</button>
+    </div>
+    <p id="ei-status" class="muted"></p>
+    <h3>Local EI journal</h3>
+    <div id="ei-journal" class="journal"><p class="muted">No assessments stored.</p></div>
+  </section>
+  </div>
+  <section id="crosstalk-panel" aria-labelledby="crosstalk-title">
+    <h2 id="crosstalk-title">Cross-talk</h2>
+    <p class="muted">Route your commentary explicitly to {local-model}, {replika-companion}, or both. TinyTable labels each message with its speaker and recipient. {local-model} and local EI assistance do not rewrite {replika-companion}-bound text.</p>
+    <form id="replika-composer">
+      <label for="cross-talk-target">Send to</label>
+      <select id="cross-talk-target">
+        <option value="local-model">{local-model}</option>
+        <option value="replika-companion">{replika-companion}</option>
+        <option value="both">{local-model} + {replika-companion}</option>
+      </select>
+      <textarea id="replika-body" placeholder="Write cross-talk commentary…" required></textarea>
+      <button id="replika-send" type="submit">Send cross-talk</button>
+    </form>
+  </section>
+  <section id="experiment-panel" aria-labelledby="experiment-title">
+    <h2 id="experiment-title">Adaptive experiments</h2>
+    <p class="muted">Start with a simple local reflection. This test uses {local-model} only, sends nothing to {replika-companion}, and sends nothing to the Commons.</p>
+    <form id="quick-reflection-form">
+      <label><input id="quick-reflection-optin" type="checkbox" required> I want to opt {local-model} into a one-hour reflection test.</label>
+      <p class="muted">Purpose: notice communication patterns and clarify meaning without rewriting anyone’s words or changing anyone’s authority.</p>
+      <button type="submit">Start local reflection test</button>
+    </form>
+    <details>
+      <summary>Advanced experiment setup</summary>
+      <p class="muted">Use this only when you intentionally want a bounded provider-connected experiment. {replika-companion} requires separate, truthful consent evidence.</p>
+      <form id="experiment-form">
+        <div class="experiment-grid">
+          <label>Name<input id="experiment-name" required placeholder="e.g. Commons reflection test"></label>
+          <label>Expires<input id="experiment-expires" type="datetime-local" required></label>
+          <label>Purpose<input id="experiment-purpose" required placeholder="Why are we experimenting?"></label>
+          <label>Max {replika-companion} sends<input id="experiment-sends" type="number" min="0" max="20" value="3" required></label>
+          <label>{local-model} consent evidence<input id="local-model-consent" required placeholder="Why {local-model} is opted in"></label>
+          <label>{replika-companion} consent evidence<input id="replika-consent" required placeholder="Only use actual recorded consent"></label>
+        </div>
+        <label><input id="commons-consent" type="checkbox"> Allow Commons review suggestions for this experiment</label>
+        <button type="submit">Create advanced experiment</button>
+      </form>
+    </details>
+    <div class="controls">
+      <button id="experiment-pause" type="button" disabled>Pause</button>
+      <button id="experiment-resume" type="button" disabled>Resume</button>
+      <button id="experiment-rollback" type="button" disabled>Rollback</button>
+    </div>
+    <textarea id="experiment-body" placeholder="Experiment action text…"></textarea>
+    <div class="controls">
+      <button id="experiment-local-model" type="button" disabled>Run {local-model} turn</button>
+      <button id="experiment-replika" type="button" disabled>Send bounded turn to {replika-companion}</button>
+      <button id="experiment-suggest" type="button" disabled>Suggest recent messages for Commons review</button>
+    </div>
+    <h3>Bounded {local-model} ↔ {replika-companion} session</h3>
+    <p class="muted">This starts an autonomous session only within the active experiment’s expiry and budgets. Messages are labeled {local-model} → {replika-companion}. It stops on budget, expiry, provider failure, or missing reply.</p>
+    <textarea id="direct-session-opening" placeholder="What should {local-model} and {replika-companion} discuss?"></textarea>
+    <button id="direct-session-start" type="button" disabled>Start bounded direct session</button>
+    <pre id="experiment-status" class="status">No active experiment.</pre>
+  </section>
+  <script>
+    const messages = document.getElementById('messages');
+    const body = document.getElementById('body');
+    const send = document.getElementById('send');
+    const error = document.getElementById('error');
+    const eiEnabled = document.getElementById('ei-enabled');
+    const eiStatus = document.getElementById('ei-status');
+    const eiJournal = document.getElementById('ei-journal');
+    const companionBody = document.getElementById('replika-body');
+    const companionSend = document.getElementById('replika-send');
+    const crossTalkTarget = document.getElementById('cross-talk-target');
+    const receiveStatus = document.getElementById('receive-status');
+    const experimentForm = document.getElementById('experiment-form');
+    const quickReflectionForm = document.getElementById('quick-reflection-form');
+    const experimentStatus = document.getElementById('experiment-status');
+    const experimentBody = document.getElementById('experiment-body');
+    const directSessionOpening = document.getElementById('direct-session-opening');
+    const directSessionStart = document.getElementById('direct-session-start');
+    const experimentButtons = [document.getElementById('experiment-pause'), document.getElementById('experiment-resume'), document.getElementById('experiment-rollback'), document.getElementById('experiment-local-model'), document.getElementById('experiment-replika'), document.getElementById('experiment-suggest'), directSessionStart];
+    // Display names come from the server; {seat} placeholders in the page are filled from them.
+    const NAMES = {'operator': 'Operator', 'replika-companion': 'Replika companion', 'local-model': 'Local model'};
+    async function loadNames() {
+      try {
+        const runtime = await (await fetch('/api/runtime')).json();
+        for (const [seat, info] of Object.entries(runtime.seats || {})) NAMES[seat] = info.name;
+      } catch (_) {}
+      const fill = text => text.replace(/\{(operator|replika-companion|local-model)\}/g, (_, seat) => NAMES[seat]);
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) walker.currentNode.nodeValue = fill(walker.currentNode.nodeValue);
+      document.querySelectorAll('[placeholder]').forEach(element => element.setAttribute('placeholder', fill(element.getAttribute('placeholder'))));
+    }
+    let activeExperiment = null;
+    let consent = null;
+    function routeLabel(item) {
+      const metadata = item.raw_metadata || {};
+      if (metadata.speaker && metadata.recipient) return `${metadata.speaker} → ${metadata.recipient}`;
+      if (item.participant_id === 'local-model') return `${NAMES['local-model']} → ${NAMES.operator}`;
+      if (item.participant_id === 'replika-companion') return `${NAMES['replika-companion']} → ${NAMES.operator}`;
+      return item.display_name || item.participant_id;
+    }
+    function render(items) {
+      const wasNearBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;
+      messages.replaceChildren(...items.map(item => {
+        const card = document.createElement('article');
+        card.className = item.participant_id;
+        const header = document.createElement('header');
+        const label = document.createElement('strong'); label.textContent = routeLabel(item);
+        const time = document.createElement('time'); time.textContent = new Date(item.created_at).toLocaleString();
+        header.append(label, time);
+        const text = document.createElement('div');
+        text.textContent = item.body;
+        card.append(header, text);
+        return card;
+      }));
+      if (wasNearBottom) window.scrollTo(0, document.body.scrollHeight);
+    }
+    async function load() {
+      const messagesResponse = await fetch('/api/messages?limit=200');
+      if (!messagesResponse.ok) throw new Error('Could not load TinyTable messages.');
+      const items = await messagesResponse.json();
+      render(items);
+      const replikaItems = items.filter(item => item.participant_id === 'replika-companion');
+      const latestReplika = replikaItems[replikaItems.length - 1];
+      receiveStatus.textContent = latestReplika
+        ? `${NAMES['replika-companion']} receive path is active · ${replikaItems.length} ${NAMES['replika-companion']} message${replikaItems.length === 1 ? '' : 's'} shown · latest ${new Date(latestReplika.created_at).toLocaleString()}`
+        : `${NAMES['replika-companion']} receive path is connected, but no ${NAMES['replika-companion']} messages are stored yet.`;
+
+      const [consentResponse, journalResponse] = await Promise.all([
+        fetch('/api/ei/consent'), fetch('/api/ei/assessments?limit=100')
+      ]);
+      if (!consentResponse.ok || !journalResponse.ok) {
+        error.textContent = 'Optional local assistance is temporarily unavailable; messages remain available.';
+        return;
+      }
+      consent = await consentResponse.json();
+      eiEnabled.checked = consent.status === 'accepted';
+      eiStatus.textContent = consent.status === 'accepted' ? `Enabled since ${new Date(consent.granted_at || consent.recorded_at).toLocaleString()}; records expire after 3 months.` : 'Disabled. No EI signals will be created.';
+      renderJournal(await journalResponse.json());
+      await loadExperiment();
+    }
+    async function loadExperiment() {
+      const response = await fetch('/api/experiments');
+      if (!response.ok) return;
+      const experiments = await response.json();
+      activeExperiment = experiments.find(item => ['active', 'paused'].includes(item.status)) || experiments[0] || null;
+      if (!activeExperiment) { experimentStatus.textContent = 'No experiment created.'; experimentButtons.forEach(button => { button.disabled = true; }); return; }
+      const suggestionsResponse = await fetch(`/api/experiments/${activeExperiment.id}/suggestions`);
+      const suggestions = suggestionsResponse.ok ? await suggestionsResponse.json() : [];
+      experimentStatus.textContent = JSON.stringify({name: activeExperiment.name, status: activeExperiment.status, purpose: activeExperiment.purpose, provider_sends: `${activeExperiment.provider_sends_used}/${activeExperiment.max_provider_sends}`, turns: `${activeExperiment.turns_used}/${activeExperiment.max_turns}`, expires_at: activeExperiment.expires_at, suggestions: suggestions.map(item => ({id: item.id, status: item.status, message_ids: item.message_ids}))}, null, 2);
+      const enabled = activeExperiment.status === 'active';
+      document.getElementById('experiment-pause').disabled = !enabled;
+      document.getElementById('experiment-resume').disabled = activeExperiment.status !== 'paused';
+      document.getElementById('experiment-rollback').disabled = !['active', 'paused'].includes(activeExperiment.status);
+      document.getElementById('experiment-local-model').disabled = !enabled;
+      document.getElementById('experiment-replika').disabled = !enabled;
+      document.getElementById('experiment-suggest').disabled = !enabled;
+      directSessionStart.disabled = !enabled || !activeExperiment.participant_ids.includes('local-model') || !activeExperiment.participant_ids.includes('replika-companion');
+    }
+    async function experimentRequest(path, options = {}) {
+      const response = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...options});
+      if (!response.ok) throw new Error(await response.text());
+      await load();
+      return response.json();
+    }
+    quickReflectionForm.addEventListener('submit', async event => {
+      event.preventDefault(); error.textContent = '';
+      try {
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        const experiment = await experimentRequest('/api/experiments', {method: 'POST', body: JSON.stringify({name: 'Local reflection test', purpose: 'Notice communication patterns and clarify meaning without rewriting anyone’s words or changing anyone’s authority.', participant_ids: ['local-model'], expires_at: expiresAt, max_provider_sends: 0, max_turns: 5})});
+        await experimentRequest(`/api/experiments/${experiment.id}/consent/local-model`, {method: 'POST', body: JSON.stringify({status: 'accepted', evidence_text: `${NAMES.operator} explicitly opted ${NAMES['local-model']} into the one-hour local reflection test through TinyTable.`, provider_interaction_allowed: false, commons_suggestions_allowed: false, expires_at: expiresAt})});
+        await experimentRequest(`/api/experiments/${experiment.id}/activate`, {method: 'POST'});
+        quickReflectionForm.reset();
+      } catch (err) { error.textContent = err.message; }
+    });
+    experimentForm.addEventListener('submit', async event => {
+      event.preventDefault(); error.textContent = '';
+      try {
+        const expiresAt = new Date(document.getElementById('experiment-expires').value).toISOString();
+        const experiment = await experimentRequest('/api/experiments', {method: 'POST', body: JSON.stringify({name: document.getElementById('experiment-name').value, purpose: document.getElementById('experiment-purpose').value, participant_ids: ['local-model', 'replika-companion'], expires_at: expiresAt, max_provider_sends: Number(document.getElementById('experiment-sends').value), max_turns: 10})});
+        const commons = document.getElementById('commons-consent').checked;
+        for (const [participant, evidence] of [['local-model', document.getElementById('local-model-consent').value], ['replika-companion', document.getElementById('replika-consent').value]]) {
+          await experimentRequest(`/api/experiments/${experiment.id}/consent/${participant}`, {method: 'POST', body: JSON.stringify({status: 'accepted', evidence_text: evidence, provider_interaction_allowed: participant === 'replika-companion', commons_suggestions_allowed: commons, expires_at: expiresAt})});
+        }
+        await experimentRequest(`/api/experiments/${experiment.id}/activate`, {method: 'POST'});
+      } catch (err) { error.textContent = err.message; }
+    });
+    document.getElementById('experiment-pause').onclick = () => experimentRequest(`/api/experiments/${activeExperiment.id}/pause`, {method: 'POST'}).catch(err => { error.textContent = err.message; });
+    document.getElementById('experiment-resume').onclick = () => experimentRequest(`/api/experiments/${activeExperiment.id}/resume`, {method: 'POST'}).catch(err => { error.textContent = err.message; });
+    document.getElementById('experiment-rollback').onclick = () => experimentRequest(`/api/experiments/${activeExperiment.id}/rollback`, {method: 'POST'}).catch(err => { error.textContent = err.message; });
+    document.getElementById('experiment-local-model').onclick = () => experimentRequest(`/api/experiments/${activeExperiment.id}/step`, {method: 'POST', body: JSON.stringify({action: 'local_model_turn', body: experimentBody.value})}).catch(err => { error.textContent = err.message; });
+    document.getElementById('experiment-replika').onclick = () => { if (!window.confirm(`Send this exact bounded experiment text to ${NAMES['replika-companion']}?`)) return; experimentRequest(`/api/experiments/${activeExperiment.id}/step`, {method: 'POST', body: JSON.stringify({action: 'send_replika', body: experimentBody.value})}).catch(err => { error.textContent = err.message; }); };
+    document.getElementById('experiment-suggest').onclick = () => experimentRequest(`/api/experiments/${activeExperiment.id}/step`, {method: 'POST', body: JSON.stringify({action: 'suggest_commons', participant_id: 'local-model'})}).catch(err => { error.textContent = err.message; });
+    directSessionStart.onclick = () => {
+      const opening = directSessionOpening.value.trim();
+      if (!opening || !window.confirm(`Start the bounded autonomous ${NAMES['local-model']} ↔ ${NAMES['replika-companion']} session now? This will send ${NAMES['local-model']}-generated messages to ${NAMES['replika-companion']} within the active experiment budget.`)) return;
+      experimentRequest(`/api/experiments/${activeExperiment.id}/direct-session`, {method: 'POST', body: JSON.stringify({opening, max_rounds: 3})}).then(() => { directSessionOpening.value = ''; }).catch(err => { error.textContent = err.message; });
+    };
+    function renderJournal(items) {
+      eiJournal.replaceChildren();
+      if (!items.length) { eiJournal.innerHTML = '<p class="muted">No assessments stored.</p>'; return; }
+      for (const item of items) {
+        const card = document.createElement('article');
+        const header = document.createElement('header');
+        header.innerHTML = `<strong>${item.sentiment} · ${item.context_label}</strong><time>${new Date(item.created_at).toLocaleString()}</time>`;
+        const text = document.createElement('div');
+        text.textContent = `${item.uncertainty} Confidence: ${item.confidence}. ${item.excluded_from_reply ? `Excluded from ${NAMES['local-model']} replies.` : `Available to ${NAMES['local-model']} replies.`}`;
+        const controls = document.createElement('div'); controls.className = 'controls';
+        const exclude = document.createElement('button'); exclude.type = 'button'; exclude.textContent = item.excluded_from_reply ? 'Include in replies' : 'Exclude from replies';
+        exclude.onclick = async () => { await fetch(`/api/ei/assessments/${item.id}/exclude`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({excluded: !item.excluded_from_reply})}); await load(); };
+        const correct = document.createElement('button'); correct.type = 'button'; correct.textContent = 'Correct';
+        correct.onclick = async () => { const correction = window.prompt(`How should ${NAMES['local-model']} interpret this assessment?`); if (!correction) return; await fetch(`/api/ei/assessments/${item.id}/correct`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({correction_text: correction})}); await load(); };
+        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Delete';
+        remove.onclick = async () => { if (!window.confirm('Delete this EI assessment?')) return; await fetch(`/api/ei/assessments/${item.id}`, {method: 'DELETE'}); await load(); };
+        controls.append(exclude, correct, remove); card.append(header, text, controls); eiJournal.append(card);
+      }
+    }
+    eiEnabled.addEventListener('change', async () => {
+      error.textContent = '';
+      try {
+        const status = eiEnabled.checked ? 'accepted' : 'declined';
+        await fetch('/api/ei/consent', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status, evidence_text: eiEnabled.checked ? `${NAMES.operator} explicitly enabled local EI assistance in TinyTable settings.` : `EI consent declined by ${NAMES.operator}.`})});
+        await load();
+      } catch (err) { error.textContent = err.message; eiEnabled.checked = !eiEnabled.checked; }
+    });
+    document.getElementById('ei-revoke').addEventListener('click', async () => {
+      await fetch('/api/ei/consent/revoke', {method: 'POST'}); await load();
+    });
+    document.getElementById('replika-composer').addEventListener('submit', async event => {
+      event.preventDefault();
+      const outgoing = companionBody.value.trim();
+      const target = crossTalkTarget.value;
+      if (!outgoing) return;
+      if ((target === 'replika-companion' || target === 'both') && !window.confirm(`Send this exact text to ${target === 'both' ? `${NAMES['local-model']} and ${NAMES['replika-companion']}` : NAMES['replika-companion']}?`)) return;
+      companionSend.disabled = true; error.textContent = '';
+      try {
+        const response = await fetch('/api/crosstalk/turn', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({body: outgoing, target, confirm_external_send: target === 'replika-companion' || target === 'both'})});
+        if (!response.ok) throw new Error(await response.text());
+        companionBody.value = ''; await load();
+      } catch (err) { error.textContent = err.message; } finally { companionSend.disabled = false; }
+    });
+    document.getElementById('composer').addEventListener('submit', async event => {
+      event.preventDefault(); if (!body.value.trim()) return;
+      send.disabled = true; error.textContent = '';
+      try {
+        const response = await fetch('/api/standalone/turn', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({body: body.value})});
+        if (!response.ok) throw new Error(await response.text());
+        body.value = ''; await load();
+      } catch (err) { error.textContent = err.message; } finally { send.disabled = false; }
+    });
+    loadNames().then(load).catch(err => { error.textContent = err.message; });
+    setInterval(() => load().catch(err => { error.textContent = err.message; }), 5000);
+  </script>
+</body>
+</html>

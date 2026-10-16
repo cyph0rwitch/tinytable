@@ -1,0 +1,232 @@
+# Full TinyTable stack: TinyTable API + web UI, Replika companion sender,
+# Kindroid companion sidecar, Matrix bridge, and a private Matrix homeserver.
+#
+# Setup steps are in docs/SETUP.md. Everything a host needs is Docker with
+# Compose v2; all configuration lives in ./local (never committed).
+#
+# The older single-service file is still available with
+# `docker compose -f compose.basic.yml up --build`.
+
+name: tinytable-table
+
+x-tinytable-image: &tinytable-image
+  build: .
+  image: tinytable-table:local
+
+x-hardened: &hardened
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  # One-shot: gives the non-root services ownership of their named volumes.
+  volume-init:
+    <<: *tinytable-image
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - chown 10001:10001 /data /secrets && chmod 0700 /data /secrets && chown 10002:10002 /matrix
+    volumes:
+      - tinytable-data:/data
+      - tinytable-secrets:/secrets
+      - matrix-data:/matrix
+    network_mode: none
+
+  tinytable:
+    <<: [*tinytable-image, *hardened]
+    user: "10001:10001"
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    env_file:
+      - path: local/tinytable.env
+        required: false
+      - path: local/seats.env
+        required: false
+      - path: local/operator.env
+        required: false
+      - path: local/identity.env
+        required: false
+      - path: local/replika.env
+        required: false
+    environment:
+      TINYTABLE_DB: /data/tinytable.db
+      TINYTABLE_API_URL: http://127.0.0.1:8000/api
+      KINDROID_SIDECAR_URL: http://kindroid-sidecar:8001
+      REPLIKA_BOOTSTRAP_FILE: /run/secrets/tinytable/replika/bootstrap.md
+    ports:
+      # Web UI fallback. Loopback only: there is no login page.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - tinytable-data:/data
+      - tinytable-secrets:/run/secrets/tinytable:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    networks: [table]
+    restart: unless-stopped
+
+  kindroid-sidecar:
+    <<: [*tinytable-image, *hardened]
+    user: "10001:10001"
+    depends_on:
+      tinytable:
+        condition: service_healthy
+    command:
+      - python
+      - kindroid_provider.py
+      - --receive-only
+      - --tinytable-api
+      - http://tinytable:8000/api
+      - --listen-port
+      - "8001"
+    env_file:
+      - path: local/seats.env
+        required: false
+      - path: local/identity.env
+        required: false
+      - path: local/kindroid.env
+        required: false
+    environment:
+      TINYTABLE_KINDROID_ENABLED: "1"
+      TINYTABLE_API_URL: http://tinytable:8000/api
+      KINDROID_SIDECAR_HOST: 0.0.0.0
+      KINDROID_SIDECAR_PORT: "8001"
+      KINDROID_SESSION_FILE: /run/secrets/tinytable/kindroid/session.json
+      KINDROID_PROTOCOL_READY: "1"
+    volumes:
+      - tinytable-secrets:/run/secrets/tinytable:ro
+    networks: [table]
+    restart: unless-stopped
+
+  matrix-bridge:
+    <<: [*tinytable-image, *hardened]
+    user: "10001:10001"
+    depends_on:
+      tinytable:
+        condition: service_healthy
+      matrix:
+        condition: service_started
+    command: ["python", "-m", "app.matrix_bridge"]
+    env_file:
+      - path: local/bridge.env
+        required: false
+      - path: local/seats.env
+        required: false
+    environment:
+      MATRIX_HOMESERVER: http://matrix:8008
+      TINYTABLE_CHANNEL_API: http://tinytable:8000/api
+      MATRIX_BRIDGE_DB: /data/matrix-bridge.db
+    volumes:
+      - tinytable-data:/data
+    networks: [table, matrix]
+    restart: unless-stopped
+
+  matrix:
+    image: forgejo.ellis.link/continuwuation/continuwuity:v26.9.1
+    <<: *hardened
+    user: "10002:10002"
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    env_file:
+      - path: local/matrix.env
+        required: false
+    environment:
+      CONTINUWUITY_DATABASE_PATH: /data/continuwuity
+      CONTINUWUITY_ADDRESS: 0.0.0.0
+      CONTINUWUITY_PORT: "8008"
+      # Private homeserver: no federation, token-only registration, no calls home.
+      CONTINUWUITY_ALLOW_FEDERATION: "false"
+      CONTINUWUITY_TRUSTED_SERVERS: "[]"
+      CONTINUWUITY_ALLOW_REGISTRATION: "true"
+      CONTINUWUITY_NEW_USER_DISPLAYNAME_SUFFIX: ""
+      CONTINUWUITY_ALLOW_ANNOUNCEMENTS_CHECK: "false"
+    ports:
+      # Plain HTTP on loopback. Phones need HTTPS: see the tailscale profile.
+      - "127.0.0.1:8008:8008"
+    volumes:
+      - matrix-data:/data
+    networks: [matrix]
+    restart: unless-stopped
+
+  # Optional: HTTPS for Matrix clients anywhere on your tailnet.
+  #   docker compose --profile tailscale up -d
+  tailscale:
+    image: tailscale/tailscale:v1.102.4
+    profiles: [tailscale]
+    env_file:
+      - path: local/tailscale.env
+        required: false
+    environment:
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./deploy/tailscale-serve.json:/config/serve.json:ro
+    networks: [matrix]
+    restart: unless-stopped
+
+  # Optional: record Replika companion messages sent outside a TinyTable turn.
+  #   docker compose --profile replika-receiver up -d
+  replika-receiver:
+    <<: [*tinytable-image, *hardened]
+    profiles: [replika-receiver]
+    user: "10001:10001"
+    depends_on:
+      tinytable:
+        condition: service_healthy
+    command:
+      - python
+      - replika_provider.py
+      - --receive-only
+      - --bootstrap-file
+      - /run/secrets/tinytable/replika/bootstrap.md
+      - --receive-with-read-only-bootstrap
+      - --tinytable-api
+      - http://tinytable:8000/api
+    env_file:
+      - path: local/replika.env
+        required: false
+    volumes:
+      - tinytable-secrets:/run/secrets/tinytable:ro
+    networks: [table]
+    restart: unless-stopped
+
+  # Setup and diagnostics: docker compose run --rm setup <command>
+  setup:
+    <<: *tinytable-image
+    profiles: [setup]
+    user: "0:0"
+    entrypoint: ["python", "scripts/tinytable_setup.py"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+    command: ["--help"]
+    volumes:
+      - ./:/work
+      - tinytable-secrets:/secrets
+    networks: [table, matrix]
+
+volumes:
+  tinytable-data:
+  tinytable-secrets:
+  matrix-data:
+  tailscale-state:
+
+networks:
+  table:
+  matrix:

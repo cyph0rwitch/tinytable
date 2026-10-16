@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: host-a-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Replace with your cluster's storage class.
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

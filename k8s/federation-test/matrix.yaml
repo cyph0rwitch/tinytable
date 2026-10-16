@@ -1,0 +1,171 @@
+# Private Matrix homeserver for talking to the companion table from Element.
+# Federation is off and registration needs a token; the only way in is the
+# Tailscale sidecar, which serves the Matrix hostname configured for your
+# deployment. Replace the example server name and certificate domain before
+# applying this manifest.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matrix-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Replace with your cluster's storage class.
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: matrix-tailscale-serve
+data:
+  serve.json: |
+    {"TCP": {"443": {"HTTPS": true}},
+     "Web": {"${TS_CERT_DOMAIN}:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8008"}}}}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix
+spec:
+  selector:
+    app.kubernetes.io/name: matrix
+  ports:
+    - name: http
+      port: 8008
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matrix
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: matrix
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: matrix
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        runAsGroup: 10002
+        fsGroup: 10002
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: continuwuity
+          image: forgejo.ellis.link/continuwuation/continuwuity:v26.9.1
+          ports:
+            - name: http
+              containerPort: 8008
+          env:
+            # Cannot change later without wiping the database.
+            - name: CONTINUWUITY_SERVER_NAME
+              value: matrix.example.org
+            - name: CONTINUWUITY_DATABASE_PATH
+              value: /data/continuwuity
+            - name: CONTINUWUITY_ADDRESS
+              value: "0.0.0.0"
+            - name: CONTINUWUITY_PORT
+              value: "8008"
+            - name: CONTINUWUITY_ALLOW_FEDERATION
+              value: "false"
+            - name: CONTINUWUITY_TRUSTED_SERVERS
+              value: "[]"
+            - name: CONTINUWUITY_ALLOW_REGISTRATION
+              value: "true"
+            - name: CONTINUWUITY_REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-matrix
+                  key: REGISTRATION_TOKEN
+            - name: CONTINUWUITY_NEW_USER_DISPLAYNAME_SUFFIX
+              value: ""
+            # No calls home: this server stays private.
+            - name: CONTINUWUITY_ALLOW_ANNOUNCEMENTS_CHECK
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              subPath: continuwuity-root
+            - name: continuwuity-tmp
+              mountPath: /tmp
+        - name: tailscale
+          image: tailscale/tailscale:v1.102.4
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: tinytable-matrix
+                  key: TS_AUTHKEY
+            - name: TS_HOSTNAME
+              value: tinytable-matrix
+            # A subdirectory Tailscale creates itself: it must own (and chmod)
+            # its state directory, which the volume's subPath root is not.
+            - name: TS_STATE_DIR
+              value: /data/tailscale/state
+            - name: HOME
+              value: /tmp
+            # Userspace networking: no NET_ADMIN or tun device needed.
+            - name: TS_USERSPACE
+              value: "true"
+            - name: TS_SERVE_CONFIG
+              value: /config/serve.json
+            - name: TS_KUBE_SECRET
+              value: ""
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data/tailscale
+              subPath: tailscale
+            - name: tailscale-tmp
+              mountPath: /tmp
+            - name: serve
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: matrix-data
+        - name: tailscale-tmp
+          emptyDir: {}
+        - name: continuwuity-tmp
+          emptyDir: {}
+        - name: serve
+          configMap:
+            name: matrix-tailscale-serve

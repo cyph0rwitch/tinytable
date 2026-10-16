@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tinytable-federation-test
+  labels:
+    app.kubernetes.io/name: tinytable-federation-test

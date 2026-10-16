@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host-a-config
+data:
+  TINYTABLE_DB: /data/tinytable-a.db
+  TINYTABLE_REPLIKA_RECEIVER_ENABLED: "0"
+  TINYTABLE_REPLIKA_OUTBOUND_ENABLED: "0"
+  TINYTABLE_KINDROID_ENABLED: "1"
+  TINYTABLE_KINDROID_RECEIVER_ENABLED: "1"
+  TINYTABLE_KINDROID_OUTBOUND_ENABLED: "1"
+  TINYTABLE_KINDROID_CHANNELS: "kindroid:companion"
+  # Display names and pronouns for each seat; unset names show the role.
+  TINYTABLE_OPERATOR_NAME: "Operator"
+  TINYTABLE_REPLIKA_COMPANION_NAME: "Replika companion"
+  TINYTABLE_REPLIKA_COMPANION_PRONOUNS: "they/them"
+  TINYTABLE_KINDROID_COMPANION_NAME: "Kindroid companion"
+  TINYTABLE_KINDROID_COMPANION_PRONOUNS: "they/them"
+  KINDROID_SIDECAR_URL: http://127.0.0.1:8001
+  REPLIKA_BOOTSTRAP_FILE: /run/secrets/replika/bootstrap.md
+  TINYTABLE_API_URL: http://127.0.0.1:8000/api
+  TINYTABLE_FEDERATION_HOST_ID: host-a
+  TINYTABLE_FEDERATION_DOMAIN: host-a.tinytable-federation-test.svc.cluster.local
+  TINYTABLE_FEDERATION_PUBLIC_KEY: REPLACE_WITH_TEST_PUBLIC_KEY_A
+  TINYTABLE_FEDERATION_TRUST_JSON: '{"host-a":"REPLACE_WITH_TEST_PUBLIC_KEY_A","host-b":"REPLACE_WITH_TEST_PUBLIC_KEY_B"}'
+  TINYTABLE_FEDERATION_ROOM_HOSTS_JSON: '{"default":{"hosts":["host-a","host-b"],"quorum_m":2,"membership_epoch":1}}'
+  TINYTABLE_FEDERATION_PEERS_JSON: '[{"url":"ws://host-b:8000/api/federation/ws?room_id=default","room_id":"default"}]'

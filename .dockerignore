@@ -1,0 +1,13 @@
+.git
+.venv
+node_modules
+frontend/dist
+data
+private/
+*.db
+.env
+.env.*
+replika_*.md
+replikastuff.md
+replika protocol
+local

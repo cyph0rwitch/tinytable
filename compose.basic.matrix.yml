@@ -1,0 +1,29 @@
+services:
+  tinytable:
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  matrix-bridge:
+    build: .
+    depends_on:
+      tinytable:
+        condition: service_healthy
+    command: ["python", "-m", "app.matrix_bridge"]
+    env_file:
+      - .env.matrix
+    environment:
+      TINYTABLE_CHANNEL_API: http://tinytable:8000/api
+      MATRIX_BRIDGE_DB: /data/matrix-bridge.db
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

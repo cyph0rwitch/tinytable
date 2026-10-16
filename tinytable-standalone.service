@@ -1,0 +1,13 @@
+[Unit]
+Description=TinyTable standalone local-first chat
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workspace/tinytable
+ExecStart=%h/workspace/tinytable/run_tinytable_standalone.sh
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

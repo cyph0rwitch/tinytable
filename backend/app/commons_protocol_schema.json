@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligence-commons.invalid/schema/protocol-v0.1.schema.json",
+  "title": "Intelligence Commons Protocol Object v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["object_type", "schema_version", "object_id", "issuer_id", "created_at", "policy_version", "integrity", "classification", "links", "payload"],
+  "properties": {
+    "object_type": {"type": "string", "enum": ["ConsentManifest", "ContributionObject", "AbstractionObject", "ProvenanceEdge", "RevocationObject", "DeletionTombstone", "LegalHoldObject", "GovernancePolicyManifest", "AuditCommitment", "DeletionAttestation", "FederationNodeIdentity"]},
+    "schema_version": {"type": "string", "const": "0.1"},
+    "object_id": {"type": "string", "minLength": 1},
+    "issuer_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "policy_version": {"type": "string", "minLength": 1},
+    "integrity": {"type": "object", "additionalProperties": false, "required": ["algorithm", "value"], "properties": {"algorithm": {"type": "string", "minLength": 1}, "value": {"type": "string", "minLength": 1}}},
+    "classification": {"type": "string", "enum": ["raw", "derived", "governance", "public_commitment"]},
+    "links": {"type": "object", "additionalProperties": false, "required": ["parents", "derivatives", "revocations", "audit"], "properties": {"parents": {"type": "array", "items": {"type": "string"}}, "derivatives": {"type": "array", "items": {"type": "string"}}, "revocations": {"type": "array", "items": {"type": "string"}}, "audit": {"type": "array", "items": {"type": "string"}}}},
+    "payload": {"type": "object"}
+  }
+}
