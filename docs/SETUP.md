@@ -64,28 +64,13 @@ use Terminal (macOS) or PowerShell (Windows) for every command below.
 ## 2. Get the code
 
 ```bash
-git clone <repository-url> tinytable
+git clone https://github.com/cyph0rwitch/tinytable_public.git tinytable
 cd tinytable
 ```
 
-If the repository is private, give the server read-only access with a deploy
-key instead of your own GitHub login:
-
-```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/tinytable_deploy
-cat ~/.ssh/tinytable_deploy.pub
-```
-
-On GitHub, open the repository's **Settings > Deploy keys > Add deploy key**,
-paste that line, and leave "Allow write access" unticked. Then clone with the commands below. The first time, ssh asks whether you
-trust GitHub's fingerprint (`Are you sure you want to continue connecting`);
-type `yes`.
-
-```bash
-GIT_SSH_COMMAND="ssh -i ~/.ssh/tinytable_deploy" git clone git@github.com:<owner>/tinytable.git tinytable
-cd tinytable
-git config core.sshCommand "ssh -i ~/.ssh/tinytable_deploy"
-```
+The repository is public, so no GitHub account or key is needed. To update
+later, run `git pull` inside the `tinytable` folder (see
+[Everyday tasks](#everyday-tasks)).
 
 ## 3. Decide how you will reach Matrix
 
