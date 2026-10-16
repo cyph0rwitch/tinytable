@@ -54,7 +54,7 @@ and `!stop`.
 ## 1. Prepare TinyTable
 
 ```bash
-git clone https://github.com/cyph0rwitch/tinytable_public.git tinytable
+git clone https://github.com/cyph0rwitch/tinytable.git tinytable
 cd tinytable
 cp .env.example .env
 cp .env.matrix.example .env.matrix

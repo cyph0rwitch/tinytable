@@ -64,7 +64,7 @@ use Terminal (macOS) or PowerShell (Windows) for every command below.
 ## 2. Get the code
 
 ```bash
-git clone https://github.com/cyph0rwitch/tinytable_public.git tinytable
+git clone https://github.com/cyph0rwitch/tinytable.git tinytable
 cd tinytable
 ```
 
