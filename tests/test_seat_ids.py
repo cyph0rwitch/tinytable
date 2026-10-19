@@ -113,6 +113,25 @@ class SeatIdTests(unittest.TestCase):
         with sqlite3.connect(backups[0]) as db:
             self.assertEqual(db.execute("SELECT participant_id FROM messages WHERE id='m1'").fetchone()[0], "nova")
 
+    def test_failed_migration_leaves_the_database_and_no_extra_backup(self):
+        init_db()
+        with sqlite3.connect(database.DB_PATH) as db:
+            db.execute("PRAGMA foreign_keys = OFF")
+            db.execute("UPDATE participants SET id='lucy' WHERE id=?", (REPLIKA,))
+            # A reference the migration cannot repair makes it roll back.
+            db.execute("INSERT INTO messages (id, participant_id, body, created_at, provider, source_type) VALUES ('m1', 'ghost', 'Hi.', '2026-01-01', 'manual', 'manual')")
+        with self.assertRaises(RuntimeError):
+            database.migrate_legacy_ids()
+        self.assertEqual(list(Path(self.directory.name).glob("tinytable.db.pre-seat-ids-*.bak")), [])
+        with sqlite3.connect(database.DB_PATH) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM participants WHERE id='lucy'").fetchone()[0], 1)
+
+    def test_connections_keep_temporary_files_in_memory(self):
+        # The container root filesystem is read-only, so SQLite has no temp directory.
+        init_db()
+        with database.connect() as db:
+            self.assertEqual(db.execute("PRAGMA temp_store").fetchone()[0], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -432,7 +432,8 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per request is noise
     env = os.environ
-    operator_id = env.get("MATRIX_OPERATOR_ID", "").strip()
+    # MATRIX_EMMA is the name older installations used.
+    operator_id = env.get("MATRIX_OPERATOR_ID", "").strip() or env.get("MATRIX_EMMA", "").strip()
     if not operator_id:
         raise SystemExit("Set MATRIX_OPERATOR_ID to the Matrix ID that operates the room")
     def token(primary: str, legacy: str) -> str:

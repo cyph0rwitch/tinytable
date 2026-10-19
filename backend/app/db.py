@@ -18,6 +18,9 @@ def connect() -> sqlite3.Connection:
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
+    # Containers run with a read-only root filesystem, so SQLite cannot create
+    # temporary files in /tmp; keep them in memory.
+    db.execute("PRAGMA temp_store = MEMORY")
     return db
 
 
@@ -656,6 +659,7 @@ def migrate_legacy_ids() -> None:
     db = sqlite3.connect(DB_PATH, isolation_level=None)
     try:
         db.execute("PRAGMA foreign_keys = OFF")
+        db.execute("PRAGMA temp_store = MEMORY")
         db.execute("BEGIN IMMEDIATE")
         tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
 
@@ -690,6 +694,9 @@ def migrate_legacy_ids() -> None:
     except BaseException:
         if db.in_transaction:
             db.execute("ROLLBACK")
+            # The database is unchanged, so this attempt's copy is not needed;
+            # a restart loop would otherwise leave one copy per attempt.
+            backup_path.unlink(missing_ok=True)
         raise
     finally:
         db.close()
